@@ -8,8 +8,7 @@ CC		= avr-g++
 P 		= $(PROJECT).hex
 OBJCOPY 	= avr-objcopy
 
-all: $(P) binary
-	avr-size $(OBJECTS)
+all: $(P) binary size
 
 %.hex: %.o
 	$(OBJCOPY) -Oihex $< $@
@@ -34,6 +33,7 @@ $(PROJECT).as: $(PROJECT).o
 	avr-objdump -S $(PROJECT).o > $(PROJECT).as
 
 size: $(OBJECTS)
+	avr-size $(OBJECTS)
 
 clean:
 	rm *.bin *.hex *.o
