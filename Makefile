@@ -28,6 +28,11 @@ binary: $(PROJECT).bin
 $(PROJECT).bin: $(OBJECTS)
 	$(OBJCOPY) -Obinary $(OBJECTS) $(PROJECT).bin
 
+das: $(PROJECT).as
+
+$(PROJECT).as: $(PROJECT).o
+	avr-objdump -S $(PROJECT).o > $(PROJECT).as
+
 size: $(OBJECTS)
 
 clean:
