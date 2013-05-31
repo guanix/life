@@ -2,21 +2,19 @@ PROJECT		= life
 F_CPU 		= 8000000
 PART		= attiny24a
 DUDEPART	= t24
-CFLAGS		= -Wall -mmcu=$(PART) -DF_CPU=$(F_CPU) -Os -Imanchester -I.
-OBJECTS		= $(PROJECT).o manchester/MANCHESTER.o
+CFLAGS		= -Wall -mmcu=$(PART) -DF_CPU=$(F_CPU) -Os -g
+OBJECTS		= $(PROJECT).o
 CC		= avr-g++
 P 		= $(PROJECT).hex
 OBJCOPY 	= avr-objcopy
 
-all: $(P)
+all: $(P) binary
+	avr-size $(OBJECTS)
 
 %.hex: %.o
 	$(OBJCOPY) -Oihex $< $@
 
 %.o: %.c %.h
-	$(CC) $(CFLAGS) -o $@ $<
-
-manchester/MANCHESTER.o: manchester/MANCHESTER.cpp manchester/MANCHESTER.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 install:
@@ -30,10 +28,7 @@ binary: $(PROJECT).bin
 $(PROJECT).bin: $(OBJECTS)
 	$(OBJCOPY) -Obinary $(OBJECTS) $(PROJECT).bin
 
-all: $(P) binary
-
 size: $(OBJECTS)
-	avr-size $(OBJECTS)
 
 clean:
 	rm *.bin *.hex *.o
