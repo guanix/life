@@ -140,7 +140,10 @@ int main()
     LED_DDR |= _BV(LED_PIN);
     led_off();
 
+    // Wakeup inducation
     blink(2);
+
+    // Set outputs
 
     RED_DDR |= _BV(RED_PIN);
     GREEN_DDR |= _BV(GREEN_PIN);
@@ -150,8 +153,7 @@ int main()
 
     timer_init();
     adc_init();
-//    seed();
-    srand(1234);
+    seed();
 
     touch_calibrate();
 
@@ -191,7 +193,8 @@ int main()
             diff_calibrate = time - last_calibrate;
         }
 
-        if (diff_calibrate > 10000) {
+        // recalibrate touch every 20 seconds
+        if (diff_calibrate > 20000) {
             _delay_ms(50);
             if (touch_measure() >= cap_cal) {
                 // 10 seconds since last update
@@ -205,19 +208,20 @@ int main()
             continue;
         }
 
-        
-        if (rand() < 16) {
-            blink(4);
-            state = rand_to_state(rand());
-            update_colors();
-            continue;
-        }
-
         ATOMIC_BLOCK(ATOMIC_FORCEON) {
             diff_update = time - last_update;
         }
 
+        // read neighbors and advance state machine
         if (diff_update > 800) {
+            // Randomly change colors instead
+            if (rand() < 150) {
+                blink(4);
+                state = rand_to_state(rand());
+                update_colors();
+                continue;
+            }
+
             // read the neighbors
             read_neighbors();
             for (uint8_t i = 0; i < NEIGHBORS; i++) {
@@ -238,8 +242,6 @@ int main()
 
         _delay_ms(25);
     }
-
-    // Sleep for a random number of milliseconds up to 512
 }
 
 void led_on()
@@ -254,17 +256,19 @@ void led_off()
 
 void timer_init()
 {
-    TCNT0 = 0;
+    // set up timer 0
     TCCR0B = _BV(CS01) | _BV(CS00); // divide by 64 I think
     next_phase = 0;
     OCR0A = 1<<next_phase;
     TIMSK0 = _BV(OCIE0A);
 
     // start timer1
-    TCNT1 = 0;
     TCCR1B = _BV(CS10); // no prescaling
     OCR1A = 8000;
     TIMSK1 = _BV(OCIE1A);
+
+    TCNT0 = 0;
+    TCNT1 = 0;
 
     sei();
 }
@@ -273,7 +277,6 @@ void adc_init()
 {
     // initialize the ADC
     ADCSRA |= _BV(ADPS2) | _BV(ADPS1);
-
     ADCSRA |= _BV(ADEN);
 }
 
@@ -310,17 +313,15 @@ void touch_calibrate()
 
 void seed()
 {
-    // generate 16 bits of entropy
+    // generate 16 bits of entropy and seed the PRNG
     unsigned int seed = 0;
 
     adc_channel(TEMP_ADC);
 
-    for (uint8_t i = 0; i < sizeof(unsigned int)*8-1; i++) {
-        // set the LSB
-        seed |= (adc_get() & 1);
-
-        // shift left
+    for (uint8_t i = 0; i < sizeof(unsigned int)*8; i++) {
+        // shift left and set the LSB
         seed <<= 1;
+        seed |= (adc_get() & 1);
     }
 
     srand(seed);
@@ -345,6 +346,7 @@ uint16_t touch_measure_one()
 
 uint16_t touch_measure()
 {
+    // average of 4 measurements
     uint16_t retval = 0;
 
     for (uint8_t i = 0; i < 4; i++) {
