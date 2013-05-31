@@ -380,7 +380,8 @@ ISR(TIM0_COMPA_vect)
 
     next_phase++;
     if (next_phase == PWM_BITS) {
-        next_phase = 0;
+        // ignore phase 1 and 2 because they're too short
+        next_phase = 2;
     }
     OCR0A = 1<<next_phase;
     TCNT0 = 0;
