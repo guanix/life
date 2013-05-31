@@ -172,6 +172,7 @@ int main()
 
     uint32_t last_update = time;
     uint32_t last_calibrate = time;
+    uint32_t diff_update, diff_calibrate;
 
     // main event loop
     while (1) {
@@ -186,7 +187,11 @@ int main()
             _delay_ms(2000);
         }
 
-        if (time - last_calibrate > 10000) {
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            diff_calibrate = time - last_calibrate;
+        }
+
+        if (diff_calibrate > 10000) {
             _delay_ms(50);
             if (touch_measure() >= cap_cal) {
                 // 10 seconds since last update
@@ -208,8 +213,11 @@ int main()
             continue;
         }
 
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            diff_update = time - last_update;
+        }
 
-        if (time - last_update > 800) {
+        if (diff_update > 800) {
             // read the neighbors
             read_neighbors();
             for (uint8_t i = 0; i < NEIGHBORS; i++) {
@@ -348,6 +356,8 @@ uint16_t touch_measure()
 
 ISR(TIM0_COMPA_vect)
 {
+    // for each color (and analog output), set output according to the
+    // binary code modulation
     if (red_level & _BV(next_phase)) {
         RED_PORT |= _BV(RED_PIN);
     } else {
@@ -378,6 +388,7 @@ ISR(TIM0_COMPA_vect)
         OUTPUT_PORT &= ~(_BV(OUTPUT_PIN));
     }
 
+    // advance to next phase, update OCR, reset timer
     next_phase++;
     if (next_phase == PWM_BITS) {
         // ignore phase 1 and 2 because they're too short
@@ -387,6 +398,8 @@ ISR(TIM0_COMPA_vect)
     TCNT0 = 0;
 }
 
+// this updates our 1ms counter for global clock
+// 32 bits, good for 50 days
 ISR(TIM1_COMPA_vect) {
     time++;
 }
