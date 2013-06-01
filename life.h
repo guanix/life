@@ -25,6 +25,11 @@
 #define TOUCH_ADC 0
 
 #define TOUCH_CALS 16
+#define TOUCH_THRESHOLD 50
+#define TOUCH_CAL_INTERVAL 50
+#define TOUCH_MEASURES 8
+
+#define LOOP_INTERVAL 50
 
 #define NC_ADC 6
 
@@ -49,7 +54,7 @@ uint16_t touch_measure();
 uint16_t touch_measure_one();
 void seed();
 void adc_channel(uint8_t channel);
-inline uint16_t adc_get();
+uint8_t adc_get();
 
 void read_neighbors();
 

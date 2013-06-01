@@ -17,7 +17,7 @@ all: $(P) binary size
 	$(CC) $(CFLAGS) -o $@ $<
 
 install:
-	avrdude -c dragon_isp -P usb -p $(DUDEPART) -U flash:w:$(P)
+	avrdude -c dragon_isp -P usb -p $(DUDEPART) -U flash:w:$(P) -B 6
 
 fuses:
 	avrdude -c dragon_isp -P usb -p $(DUDEPART) -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
