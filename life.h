@@ -29,6 +29,8 @@
 #define TOUCH_CAL_INTERVAL 50
 #define TOUCH_MEASURES 8
 
+#define NEIGHBOR_READINGS 256
+
 #define LOOP_INTERVAL 50
 
 #define NC_ADC 6
@@ -54,9 +56,11 @@ uint16_t touch_measure();
 uint16_t touch_measure_one();
 void seed();
 void adc_channel(uint8_t channel);
+uint16_t adc_get_raw();
 uint8_t adc_get();
 
 void read_neighbors();
+uint8_t read_neighbor();
 
 uint8_t rand_to_state(int r);
 uint8_t adc_to_state(uint16_t a);

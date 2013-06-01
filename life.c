@@ -36,7 +36,7 @@ const uint8_t palette[STATES][3] PROGMEM = {
 };
 
 const uint8_t palette_pwm[STATES] PROGMEM = {
-    14,
+    0,
     42,
     70,
     98,
@@ -97,19 +97,30 @@ uint8_t adc_to_state(uint8_t a)
     return STATES-1;
 }
 
+uint8_t read_neighbor()
+{
+    uint32_t reading = 0;
+    for (uint16_t i = 0; i < NEIGHBOR_READINGS; i++) {
+        reading += adc_get_raw();
+    }
+
+    reading /= NEIGHBOR_READINGS;
+    return reading;
+}
+
 void read_neighbors()
 {
     adc_channel(IN1_ADC);
-    neighbors[0] = adc_to_state(adc_get());
+    neighbors[0] = adc_to_state(read_neighbor());
 
     adc_channel(IN2_ADC);
-    neighbors[1] = adc_to_state(adc_get());
+    neighbors[1] = adc_to_state(read_neighbor());
 
     adc_channel(IN3_ADC);
-    neighbors[2] = adc_to_state(adc_get());
+    neighbors[2] = adc_to_state(read_neighbor());
 
     adc_channel(IN4_ADC);
-    neighbors[3] = adc_to_state(adc_get());
+    neighbors[3] = adc_to_state(read_neighbor());
 }
 
 void update_colors()
@@ -157,7 +168,7 @@ int main()
     // cycle through the colors
     for (state = 0; state < STATES; state++) {
         update_colors();
-        _delay_ms(500);
+        _delay_ms(5000);
     }
 
     // sleep for a random amount of time up to 1 second
@@ -180,9 +191,8 @@ int main()
             state = rand_to_state(rand());
             update_colors();
             // wait till finger lifted
-            _delay_ms(500);
+            _delay_ms(1000);
             led_off();
-            _delay_ms(2000);
         }
 
         // read neighbors and advance state machine
@@ -232,6 +242,7 @@ void timer_init()
 {
     // set up timer 0
     TCCR0B = _BV(CS01) | _BV(CS00); // divide by 64 I think
+//    TCCR0B = _BV(CS01); // divide by 8
     next_phase = 0;
     OCR0A = 1<<next_phase;
     TIMSK0 = _BV(OCIE0A);
@@ -260,6 +271,14 @@ uint8_t adc_get()
     while (!(ADCSRA & _BV(ADIF)));
     ADCSRA |= _BV(ADIF);
     return ADC / 4;
+}
+
+uint16_t adc_get_raw()
+{
+    ADCSRA |= _BV(ADSC);
+    while (!(ADCSRA & _BV(ADIF)));
+    ADCSRA |= _BV(ADIF);
+    return ADC;
 }
 
 void touch_calibrate()
@@ -374,7 +393,7 @@ ISR(TIM0_COMPA_vect)
     next_phase++;
     if (next_phase == PWM_BITS) {
         // ignore first couple of phases because they're too short
-        next_phase = 1;
+        next_phase = 0;
     }
     OCR0A = 1<<next_phase;
     TCNT0 = 0;
