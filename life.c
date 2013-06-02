@@ -35,29 +35,6 @@ const uint8_t palette[STATES][3] PROGMEM = {
     {255, 0, 255}
 };
 
-const uint8_t palette_pwm[STATES] PROGMEM = {
-    0,
-    42,
-    98,
-    126,
-    154,
-    182,
-    210,
-    238,
-    255
-};
-
-const uint8_t palette_adc[STATES-1] PROGMEM = {
-    28,
-    56,
-    84,
-    112,
-    140,
-    168,
-    196,
-    224
-};
-
 const int palette_rand[STATES-1] PROGMEM = {
     3640,
     7280,
@@ -84,53 +61,11 @@ uint8_t rand_to_state(int r)
     return STATES-1;
 }
 
-uint8_t adc_to_state(uint8_t a)
-{
-    // ADC is 10 bits, we want 8 valies which is 3 bits
-    for (uint8_t i = 0; i < STATES-1; i++) {
-        uint8_t t = pgm_read_byte(&(palette_adc[i]));
-        if (a <= t) {
-            return i;
-        }
-    }
-
-    return STATES-1;
-}
-
-uint8_t read_neighbor()
-{
-    uint32_t reading = 0;
-    for (uint16_t i = 0; i < NEIGHBOR_READINGS; i++) {
-        reading += adc_get_raw();
-    }
-
-    reading /= NEIGHBOR_READINGS;
-    reading /= 4;
-    return reading;
-}
-
-void read_neighbors()
-{
-    adc_channel(IN1_ADC);
-    neighbors[0] = adc_to_state(read_neighbor());
-
-    adc_channel(IN2_ADC);
-    neighbors[1] = adc_to_state(read_neighbor());
-
-    adc_channel(IN3_ADC);
-    neighbors[2] = adc_to_state(read_neighbor());
-
-    adc_channel(IN4_ADC);
-    neighbors[3] = adc_to_state(read_neighbor());
-}
-
 void update_colors()
 {
     red_level = pgm_read_byte(&(palette[state][0]));
     green_level = pgm_read_byte(&(palette[state][1]));
     blue_level = pgm_read_byte(&(palette[state][2]));
-
-    OCR0B = pgm_read_byte(&(palette_pwm[state]));
 }
 
 
@@ -246,16 +181,11 @@ void led_off()
 void timer_init()
 {
     // set up timer 1 for LEDs, /64 prescaling
-    TCCR1B = _BV(CS11) | _BV(CS10);
+    TCCR0B = _BV(CS01) | _BV(CS00);
     next_phase = 0;
-    OCR1A = 1<<next_phase;
-    TIMSK1 = _BV(OCIE1A);
+    OCR0A = 1<<next_phase;
+    TIMSK0 = _BV(OCIE1A);
 
-    TCNT1 = 0;
-
-    // set up timer 0 for analog output, /8 prescaling
-    TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM02) | _BV(WGM00);
-    TCCR0B = _BV(CS01);
     TCNT0 = 0;
 
     sei();
@@ -364,7 +294,7 @@ uint16_t touch_measure()
     return retval/TOUCH_MEASURES;
 }
 
-ISR(TIM1_COMPA_vect)
+ISR(TIM0_COMPA_vect)
 {
     // for each color (and analog output), set output according to the
     // binary code modulation
@@ -398,6 +328,6 @@ ISR(TIM1_COMPA_vect)
         // ignore first couple of phases because they're too short
         next_phase = 1;
     }
-    OCR1A = 1<<next_phase;
-    TCNT1 = 0;
+    OCR0A = 1<<next_phase;
+    TCNT0 = 0;
 }
