@@ -38,13 +38,13 @@ const uint8_t palette[STATES][3] PROGMEM = {
 const uint8_t palette_pwm[STATES] PROGMEM = {
     0,
     42,
-    70,
     98,
     126,
     154,
     182,
     210,
-    238
+    238,
+    255
 };
 
 const uint8_t palette_adc[STATES-1] PROGMEM = {
@@ -105,6 +105,7 @@ uint8_t read_neighbor()
     }
 
     reading /= NEIGHBOR_READINGS;
+    reading /= 4;
     return reading;
 }
 
@@ -129,7 +130,7 @@ void update_colors()
     green_level = pgm_read_byte(&(palette[state][1]));
     blue_level = pgm_read_byte(&(palette[state][2]));
 
-    output_level = pgm_read_byte(&(palette_pwm[state]));
+    OCR0B = pgm_read_byte(&(palette_pwm[state]));
 }
 
 
@@ -168,7 +169,7 @@ int main()
     // cycle through the colors
     for (state = 0; state < STATES; state++) {
         update_colors();
-        _delay_ms(5000);
+        _delay_ms(500);
     }
 
     // sleep for a random amount of time up to 1 second
@@ -188,7 +189,9 @@ int main()
     while (1) {
         if (touch_measure() < cap_cal) {
             led_on();
-            state = rand_to_state(rand());
+//            state = rand_to_state(rand());
+            state++;
+            if (state == STATES) state = 0;
             update_colors();
             // wait till finger lifted
             _delay_ms(1000);
@@ -196,6 +199,7 @@ int main()
         }
 
         // read neighbors and advance state machine
+        /*
         if (count >= 1000/LOOP_INTERVAL) {
             count = 0;
             led_on();
@@ -222,6 +226,7 @@ int main()
 
             led_off();
         }
+        */
 
         _delay_ms(LOOP_INTERVAL);
         count++;
@@ -240,13 +245,17 @@ void led_off()
 
 void timer_init()
 {
-    // set up timer 0
-    TCCR0B = _BV(CS01) | _BV(CS00); // divide by 64 I think
-//    TCCR0B = _BV(CS01); // divide by 8
+    // set up timer 1 for LEDs, /64 prescaling
+    TCCR1B = _BV(CS11) | _BV(CS10);
     next_phase = 0;
-    OCR0A = 1<<next_phase;
-    TIMSK0 = _BV(OCIE0A);
+    OCR1A = 1<<next_phase;
+    TIMSK1 = _BV(OCIE1A);
 
+    TCNT1 = 0;
+
+    // set up timer 0 for analog output, /8 prescaling
+    TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM02) | _BV(WGM00);
+    TCCR0B = _BV(CS01);
     TCNT0 = 0;
 
     sei();
@@ -355,7 +364,7 @@ uint16_t touch_measure()
     return retval/TOUCH_MEASURES;
 }
 
-ISR(TIM0_COMPA_vect)
+ISR(TIM1_COMPA_vect)
 {
     // for each color (and analog output), set output according to the
     // binary code modulation
@@ -383,18 +392,12 @@ ISR(TIM0_COMPA_vect)
         BLUE_PORT &= ~(_BV(BLUE_PIN));
     }
 
-    if (output_level & _BV(next_phase)) {
-        OUTPUT_PORT |= _BV(OUTPUT_PIN);
-    } else {
-        OUTPUT_PORT &= ~(_BV(OUTPUT_PIN));
-    }
-
     // advance to next phase, update OCR, reset timer
     next_phase++;
     if (next_phase == PWM_BITS) {
         // ignore first couple of phases because they're too short
-        next_phase = 0;
+        next_phase = 1;
     }
-    OCR0A = 1<<next_phase;
-    TCNT0 = 0;
+    OCR1A = 1<<next_phase;
+    TCNT1 = 0;
 }
