@@ -10,18 +10,15 @@
 
 #include "life.h"
 
-uint8_t rgb_levels[3] = {0, 0, 0};
+uint8_t red_level;
+uint8_t green_level;
+uint8_t blue_level;
 uint8_t output_level;
 uint8_t next_phase;
 
 uint8_t cap_cal;
 
-// start in state zero (off)
-uint8_t state = 0;
-uint8_t output = 0;
-
-// clocks
-uint16_t clock = 0;
+uint8_t state;
 
 #define STATES 9
 
@@ -38,29 +35,48 @@ const uint8_t palette[STATES][3] PROGMEM = {
     {255, 0, 255}
 };
 
-const uint8_t palette_rand[STATES-1] PROGMEM = {
-    14,
-    28,
+const uint8_t palette_pwm[STATES] PROGMEM = {
+    0,
     42,
-    56,
-    70,
-    84,
     98,
-    112
+    126,
+    154,
+    182,
+    210,
+    238,
+    255
 };
 
-// last known neighbor state
+const uint8_t palette_adc[STATES-1] PROGMEM = {
+    28,
+    56,
+    84,
+    112,
+    140,
+    168,
+    196,
+    224
+};
+
+const int palette_rand[STATES-1] PROGMEM = {
+    3640,
+    7280,
+    10920,
+    14560,
+    18200,
+    21840,
+    25480,
+    29120
+};
+
 uint8_t neighbors[NEIGHBORS];
-uint16_t neighbors_last_pc[NEIGHBORS];
 
 uint8_t rand_to_state(int r)
 {
-    uint8_t r2 = r >> 8;
-
     // rand_max is 15 bits, we want 8 values which is 3 bits
     for (uint8_t i = 0; i < STATES-1; i++) {
         int t = pgm_read_word(&(palette_rand[i]));
-        if (r2 <= t) {
+        if (r <= t) {
             return i;
         }
     }
@@ -68,12 +84,55 @@ uint8_t rand_to_state(int r)
     return STATES-1;
 }
 
+uint8_t adc_to_state(uint8_t a)
+{
+    // ADC is 10 bits, we want 8 valies which is 3 bits
+    for (uint8_t i = 0; i < STATES-1; i++) {
+        uint8_t t = pgm_read_byte(&(palette_adc[i]));
+        if (a <= t) {
+            return i;
+        }
+    }
+
+    return STATES-1;
+}
+
+uint8_t read_neighbor()
+{
+    uint32_t reading = 0;
+    for (uint16_t i = 0; i < NEIGHBOR_READINGS; i++) {
+        reading += adc_get_raw();
+    }
+
+    reading /= NEIGHBOR_READINGS;
+    reading /= 4;
+    return reading;
+}
+
+void read_neighbors()
+{
+    adc_channel(IN1_ADC);
+    neighbors[0] = adc_to_state(read_neighbor());
+
+    adc_channel(IN2_ADC);
+    neighbors[1] = adc_to_state(read_neighbor());
+
+    adc_channel(IN3_ADC);
+    neighbors[2] = adc_to_state(read_neighbor());
+
+    adc_channel(IN4_ADC);
+    neighbors[3] = adc_to_state(read_neighbor());
+}
+
 void update_colors()
 {
-    for (uint8_t i = 0; i < 3; i++) {
-        rgb_levels[i] = pgm_read_byte(&(palette[state][i]));
-    }
+    red_level = pgm_read_byte(&(palette[state][0]));
+    green_level = pgm_read_byte(&(palette[state][1]));
+    blue_level = pgm_read_byte(&(palette[state][2]));
+
+    OCR0B = pgm_read_byte(&(palette_pwm[state]));
 }
+
 
 void blink(uint8_t times)
 {
@@ -96,30 +155,22 @@ int main()
 
     // Set outputs
 
-    RGB_DDR |= _BV(RED_PIN) | _BV(GREEN_PIN) | _BV(BLUE_PIN);
+    RED_DDR |= _BV(RED_PIN);
+    GREEN_DDR |= _BV(GREEN_PIN);
+    BLUE_DDR |= _BV(BLUE_PIN);
 
-    OUTPUT_PORT |= _BV(OUTPUT_PIN);
     OUTPUT_DDR |= _BV(OUTPUT_PIN);
-
-    // pullups on all the inputs
-    for (uint8_t i = 0; i < IN_PINS; i++) {
-        IN_DDR &= ~(_BV(in_pins[i]));
-        IN_PORT |= _BV(in_pins[i]);
-    }
 
     timer_init();
     adc_init();
-//    srand(1234);
-    seed();
+    srand(1234);
+//    seed();
 
     // cycle through the colors
-    // disabled to save space
-#if 1
     for (state = 0; state < STATES; state++) {
         update_colors();
         _delay_ms(500);
     }
-#endif
 
     // sleep for a random amount of time up to 1 second
     for (uint8_t i = 0; i < rand() >> 8; i++) {
@@ -148,6 +199,7 @@ int main()
         }
 
         // read neighbors and advance state machine
+        /*
         if (count >= 1000/LOOP_INTERVAL) {
             count = 0;
             led_on();
@@ -161,6 +213,7 @@ int main()
             }
 
             // read the neighbors
+            read_neighbors();
             for (uint8_t i = 0; i < NEIGHBORS; i++) {
                 if (neighbors[i] == state + 1 ||
                         (state == STATES && neighbors[i] == 0)) {
@@ -173,6 +226,7 @@ int main()
 
             led_off();
         }
+        */
 
         _delay_ms(LOOP_INTERVAL);
         count++;
@@ -189,35 +243,28 @@ void led_off()
     LED_PORT &= ~(_BV(LED_PIN));
 }
 
-inline void timer_init()
+void timer_init()
 {
     // set up timer 1 for LEDs, /64 prescaling
-    TCCR0B = _BV(CS01) | _BV(CS00);
+    TCCR1B = _BV(CS11) | _BV(CS10);
     next_phase = 0;
-    OCR0A = 1<<next_phase;
-    TIMSK0 = _BV(OCIE1A);
+    OCR1A = 1<<next_phase;
+    TIMSK1 = _BV(OCIE1A);
 
+    TCNT1 = 0;
+
+    // set up timer 0 for analog output, /8 prescaling
+    // fast PWM mode
+    TCCR0A = _BV(COM0B1) | _BV(WGM01) | _BV(WGM00);
+    TCCR0B = _BV(CS01);
+    // start out at zero
+    OCR0B = 0;
     TCNT0 = 0;
-
-    TCCR1B = _BV(CS11); // /8 prescaling so TCNT1 counts in microseconds
-
-    // OCR1A is used for our own output
-    // output starts at 0
-    // we send out every 10000 microseconds
-    output = 0;
-    OCR1A = 10000;
-    TIMSK1 = _BV(OCIE1A) | _BV(TOIE1);
-
-    // enable pin change interrupts on inputs
-    GIFR |= _BV(PCIF0);
-    for (uint8_t i = 0; i < IN_PINS; i++) {
-        PCMSK0 |= _BV(in_pins[i]);
-    }
 
     sei();
 }
 
-inline void adc_init()
+void adc_init()
 {
     // initialize the ADC
     ADCSRA |= _BV(ADPS2) | _BV(ADPS1);
@@ -246,7 +293,7 @@ uint16_t adc_get_raw()
     return ADC;
 }
 
-inline void touch_calibrate()
+void touch_calibrate()
 {
     // hard code for now
     // we will do 16 tests 100 ms apart
@@ -320,17 +367,32 @@ uint16_t touch_measure()
     return retval/TOUCH_MEASURES;
 }
 
-ISR(TIM0_COMPA_vect)
+ISR(TIM1_COMPA_vect)
 {
     // for each color (and analog output), set output according to the
     // binary code modulation
-    // this method wastes some RAM but saves us some program space
-    for (uint8_t i = 0; i < 3; i++) {
-        if (rgb_levels[i] & _BV(next_phase)) {
-            RGB_PORT |= _BV(rgb_pins[i]);
-        } else {
-            RGB_PORT &= ~(_BV(rgb_pins[i]));
-        }
+    if (red_level & _BV(next_phase)) {
+        RED_PORT |= _BV(RED_PIN);
+    } else {
+        RED_PORT &= ~(_BV(RED_PIN));
+    }
+
+    if (green_level & _BV(next_phase)) {
+        GREEN_PORT |= _BV(GREEN_PIN);
+    } else {
+        GREEN_PORT &= ~(_BV(GREEN_PIN));
+    }
+
+    if (blue_level & _BV(next_phase)) {
+        BLUE_PORT |= _BV(BLUE_PIN);
+    } else {
+        BLUE_PORT &= ~(_BV(BLUE_PIN));
+    }
+
+    if (blue_level & _BV(next_phase)) {
+        BLUE_PORT |= _BV(BLUE_PIN);
+    } else {
+        BLUE_PORT &= ~(_BV(BLUE_PIN));
     }
 
     // advance to next phase, update OCR, reset timer
@@ -339,56 +401,6 @@ ISR(TIM0_COMPA_vect)
         // ignore first couple of phases because they're too short
         next_phase = 1;
     }
-    OCR0A = 1<<next_phase;
-    TCNT0 = 0;
-}
-
-ISR(TIM1_COMPA_vect)
-{
-    // flip our output off
-    if (output) {
-        #if (OUTPUT_INTERVAL > (1<<15))
-            #error OUTPUT_INTERVAL too large to be practical
-        #endif
-        OUTPUT_PORT &= ~(_BV(OUTPUT_PIN));
-        OCR1A += OUTPUT_INTERVAL;
-        output = 0;
-    } else {
-        // flip output on
-        OUTPUT_PORT |= _BV(OUTPUT_PIN);
-        OCR1A += (state+1)*100;
-        output = 1;
-    }
-}
-
-ISR(TIM1_OVF_vect)
-{
-    // update timer
+    OCR1A = 1<<next_phase;
     TCNT1 = 0;
-    clock++;
-}
-
-ISR(PCINT0_vect)
-{
-    for (uint8_t i = 0; i < IN_PINS; i++) {
-        // high to low
-        if (neighbors_last_pc[i] == 0 && !(IN_PIN & _BV(in_pins[i]))) {
-            neighbors_last_pc[i] = TCNT1;
-        } else if (neighbors_last_pc[i] > 0 && (IN_PIN & _BV(in_pins[i]))) {
-            // low to high
-            uint16_t period = TCNT1 - neighbors_last_pc[i];
-            neighbors_last_pc[i] = 0;
-
-            // too high;
-            if (period > 910) continue;
-
-            period += 10;
-
-            // we have to be within 10% of the correct period
-            uint8_t modulus = period % 100;
-            if (modulus <= 20 && period >= 1 && period <= 9) {
-                neighbors[i] = (period - modulus)/100;
-            }
-        }
-    }
 }
