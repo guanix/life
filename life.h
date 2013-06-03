@@ -51,15 +51,15 @@ inline void led_off();
 
 inline void timer_init();
 inline void adc_init();
-void touch_calibrate();
+inline void touch_calibrate();
 uint16_t touch_measure();
 uint16_t touch_measure_one();
-void seed();
+inline void seed();
 void adc_channel(uint8_t channel);
 uint16_t adc_get_raw();
 uint8_t adc_get();
 
-void read_neighbors();
+inline void read_neighbors();
 uint8_t read_neighbor();
 
 uint8_t rand_to_state(int r);

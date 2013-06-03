@@ -109,7 +109,7 @@ uint8_t read_neighbor()
     return reading;
 }
 
-void read_neighbors()
+inline void read_neighbors()
 {
     adc_channel(IN1_ADC);
     neighbors[0] = adc_to_state(read_neighbor());
@@ -163,8 +163,8 @@ int main()
 
     timer_init();
     adc_init();
-    srand(1234);
-//    seed();
+//    srand(1234);
+    seed();
 
     // cycle through the colors
     for (state = 0; state < STATES; state++) {
@@ -293,7 +293,7 @@ uint16_t adc_get_raw()
     return ADC;
 }
 
-void touch_calibrate()
+inline void touch_calibrate()
 {
     // hard code for now
     // we will do 16 tests 100 ms apart
@@ -318,7 +318,7 @@ void touch_calibrate()
     }
 }
 
-void seed()
+inline void seed()
 {
     // generate 16 bits of entropy and seed the PRNG
     unsigned int seed = 0;
