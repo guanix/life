@@ -25,29 +25,31 @@ uint8_t state;
 // R G B
 const uint8_t palette[STATES][3] PROGMEM = {
     {0, 0, 0},
-    {0, 165, 255},
-    {255, 0, 0},
-    {255, 165, 0},
-    {255, 255, 0},
-    {0, 255, 0},
-    {0, 255, 255},
-    {0, 0, 255},
-    {255, 0, 255}
+    {0, 63, 127},
+    {127, 0, 0},
+    {127, 63, 0},
+    {127, 127, 0},
+    {0, 127, 0},
+    {0, 127, 127},
+    {0, 0, 127},
+    {127, 0, 127}
 };
 
+// Mapping of state to PWM value for OCR0B
 const uint8_t palette_pwm[STATES] PROGMEM = {
     0,
     42,
+    70,
     98,
     126,
     154,
     182,
     210,
-    238,
-    255
+    238
 };
 
-const uint8_t palette_adc[STATES-1] PROGMEM = {
+// Mapping of 8-bit truncated ADC value to state
+const uint8_t palette_adc[STATES] PROGMEM = {
     28,
     56,
     84,
@@ -55,9 +57,11 @@ const uint8_t palette_adc[STATES-1] PROGMEM = {
     140,
     168,
     196,
-    224
+    224,
+    245
 };
 
+// Mapping of rand value (0 to 0x7fff) to state
 const int palette_rand[STATES-1] PROGMEM = {
     3640,
     7280,
@@ -87,14 +91,14 @@ uint8_t rand_to_state(int r)
 uint8_t adc_to_state(uint8_t a)
 {
     // ADC is 10 bits, we want 8 valies which is 3 bits
-    for (uint8_t i = 0; i < STATES-1; i++) {
+    for (uint8_t i = 0; i < STATES; i++) {
         uint8_t t = pgm_read_byte(&(palette_adc[i]));
         if (a <= t) {
             return i;
         }
     }
 
-    return STATES-1;
+    return STATES;
 }
 
 uint8_t read_neighbor()
@@ -153,6 +157,7 @@ int main()
     // Wakeup inducation
     blink(2);
 
+    OUTPUT_DDR |= _BV(OUTPUT_PIN);
     // Set outputs
 
     RED_DDR |= _BV(RED_PIN);
@@ -199,7 +204,7 @@ int main()
         }
 
         // read neighbors and advance state machine
-        /*
+        
         if (count >= 1000/LOOP_INTERVAL) {
             count = 0;
             led_on();
@@ -215,8 +220,9 @@ int main()
             // read the neighbors
             read_neighbors();
             for (uint8_t i = 0; i < NEIGHBORS; i++) {
-                if (neighbors[i] == state + 1 ||
-                        (state == STATES && neighbors[i] == 0)) {
+                if (neighbors[i] != STATES &&
+                        (neighbors[i] == state + 1 ||
+                        (state == STATES && neighbors[i] == 0))) {
                     blink(2);
                     state = neighbors[i];
                     update_colors();
@@ -226,7 +232,7 @@ int main()
 
             led_off();
         }
-        */
+        
 
         _delay_ms(LOOP_INTERVAL);
         count++;
