@@ -25,14 +25,14 @@ uint8_t state;
 // R G B
 const uint8_t palette[STATES][3] PROGMEM = {
     {0, 0, 0},
-    {0, 0b01110000, 0b11110000},
-    {0b11110000, 0, 0},
-    {0b11110000, 0b01110000, 0},
-    {0b11110000, 0b11110000, 0},
-    {0, 0b11110000, 0},
-    {0, 0b11110000, 0b11110000},
-    {0, 0, 0b11110000},
-    {0b11110000, 0, 0b11110000}
+    {0, 0b01, 0b11},
+    {0b11, 0, 0},
+    {0b11, 0b01, 0},
+    {0b11, 0b11, 0},
+    {0, 0b11, 0},
+    {0, 0b11, 0b11},
+    {0, 0, 0b11},
+    {0b11, 0, 0b11}
 };
 
 // Mapping of state to PWM value for OCR0B
@@ -260,7 +260,7 @@ void timer_init()
     // set up timer 1 for LEDs, /64 prescaling
     TCCR1B = _BV(CS11) | _BV(CS10);
     next_phase = 0;
-    OCR1A = 1<<next_phase;
+    OCR1A = 31;
     TIMSK1 = _BV(OCIE1A);
 
     TCNT1 = 0;
@@ -381,8 +381,7 @@ uint16_t touch_measure()
 
 ISR(TIM1_COMPA_vect)
 {
-    // for each color (and analog output), set output according to the
-    // binary code modulation
+    // we now do 2-bit PWM
     if (red_level & _BV(next_phase)) {
         RED_PORT |= _BV(RED_PIN);
     } else {
@@ -407,12 +406,10 @@ ISR(TIM1_COMPA_vect)
         BLUE_PORT &= ~(_BV(BLUE_PIN));
     }
 
-    // advance to next phase, update OCR, reset timer
+    // advance to next phase, reset timer
     next_phase++;
-    if (next_phase == PWM_BITS) {
-        // ignore first couple of phases because they're too short
-        next_phase = 3;
+    if (next_phase == 2) {
+        next_phase = 0;
     }
-    OCR1A = 1<<next_phase;
     TCNT1 = 0;
 }
