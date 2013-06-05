@@ -204,6 +204,9 @@ int main()
         }
 
         // read neighbors and advance state machine
+#if (LOOP_INTERVAL<=3)
+    #error LOOP_INTERVAL too small
+#endif
         
         if (count >= 1000/LOOP_INTERVAL) {
             count = 0;
@@ -232,10 +235,15 @@ int main()
 
             led_off();
 
-            // recalibrate touch sensor every to seconds
-            if (count_s++ == 20) {
+            // recalibrate touch sensor every 200 seconds
+            if (count_s++ == 200) {
                 count_s = 0;
-                touch_calibrate();
+                if (touch_measure() >= cap_cal) {
+                    _delay_ms(50);
+                    if (touch_measure() >= cap_cal) {
+                        touch_calibrate();
+                    }
+                }
             }
         }
         
@@ -257,10 +265,10 @@ void led_off()
 
 void timer_init()
 {
-    // set up timer 1 for LEDs, /64 prescaling
-    TCCR1B = _BV(CS11) | _BV(CS10);
+    // set up timer 1 for LEDs, no prescaling, 2 kHz (2-bit PWM) 
+    TCCR1B = _BV(CS10);
     next_phase = 1;
-    OCR1A = 31;
+    OCR1A = 4000;
     TIMSK1 = _BV(OCIE1A);
 
     TCNT1 = 0;
@@ -315,14 +323,14 @@ inline void touch_calibrate()
 
     uint16_t cal = 0;
 
-    cli();
+//    cli();
 
     for (uint8_t i = 0; i < TOUCH_CALS; i++) {
         cal += touch_measure_one();
         _delay_ms(TOUCH_CAL_INTERVAL);
     }
 
-    sei();
+//    sei();
 
     cap_cal = cal / TOUCH_CALS - TOUCH_THRESHOLD;
     if (cap_cal < 180) {
@@ -368,13 +376,13 @@ uint16_t touch_measure()
     // average of 4 measurements
     uint16_t retval = 0;
 
-    cli();
+//    cli();
 
     for (uint8_t i = 0; i < TOUCH_MEASURES; i++) {
         retval += touch_measure_one();
     }
     
-    sei();
+//    sei();
 
     return retval/TOUCH_MEASURES;
 }
@@ -392,12 +400,6 @@ ISR(TIM1_COMPA_vect)
         GREEN_PORT |= _BV(GREEN_PIN);
     } else {
         GREEN_PORT &= ~(_BV(GREEN_PIN));
-    }
-
-    if (blue_level & next_phase) {
-        BLUE_PORT |= _BV(BLUE_PIN);
-    } else {
-        BLUE_PORT &= ~(_BV(BLUE_PIN));
     }
 
     if (blue_level & next_phase) {
