@@ -171,6 +171,8 @@ int main()
 //    srand(1234);
     seed();
 
+    touch_calibrate();
+
     // cycle through the colors
     for (state = 0; state < STATES; state++) {
         update_colors();
@@ -182,21 +184,19 @@ int main()
         _delay_ms(10);
     }
 
-    touch_calibrate();
-
     // initial state
     state = rand_to_state(rand());
     update_colors();
 
-    uint8_t count = 0;
+    uint8_t count = 0, count_s = 0;
 
     // main event loop
     while (1) {
         if (touch_measure() < cap_cal) {
             led_on();
-//            state = rand_to_state(rand());
-            state++;
-            if (state == STATES) state = 0;
+            state = rand_to_state(rand());
+//            state++;
+//            if (state == STATES) state = 0;
             update_colors();
             // wait till finger lifted
             _delay_ms(1000);
@@ -231,6 +231,12 @@ int main()
             }
 
             led_off();
+
+            // recalibrate touch sensor every to seconds
+            if (count_s++ == 20) {
+                count_s = 0;
+                touch_calibrate();
+            }
         }
         
 
