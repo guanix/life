@@ -25,14 +25,14 @@ uint8_t state;
 // R G B
 const uint8_t palette[STATES][3] PROGMEM = {
     {0, 0, 0},
-    {0, 63, 127},
-    {127, 0, 0},
-    {127, 63, 0},
-    {127, 127, 0},
-    {0, 127, 0},
-    {0, 127, 127},
-    {0, 0, 127},
-    {127, 0, 127}
+    {0, 0b01110000, 0b11110000},
+    {0b11110000, 0, 0},
+    {0b11110000, 0b01110000, 0},
+    {0b11110000, 0b11110000, 0},
+    {0, 0b11110000, 0},
+    {0, 0b11110000, 0b11110000},
+    {0, 0, 0b11110000},
+    {0b11110000, 0, 0b11110000}
 };
 
 // Mapping of state to PWM value for OCR0B
@@ -210,7 +210,7 @@ int main()
             led_on();
 
             // Randomly change colors instead
-            if (rand() < RAND_MAX>>12) {
+            if (rand() < RAND_MAX>>9) {
                 blink(4);
                 state = rand_to_state(rand());
                 update_colors();
@@ -411,7 +411,7 @@ ISR(TIM1_COMPA_vect)
     next_phase++;
     if (next_phase == PWM_BITS) {
         // ignore first couple of phases because they're too short
-        next_phase = 1;
+        next_phase = 3;
     }
     OCR1A = 1<<next_phase;
     TCNT1 = 0;
