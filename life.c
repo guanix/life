@@ -259,7 +259,7 @@ void timer_init()
 {
     // set up timer 1 for LEDs, /64 prescaling
     TCCR1B = _BV(CS11) | _BV(CS10);
-    next_phase = 0;
+    next_phase = 1;
     OCR1A = 31;
     TIMSK1 = _BV(OCIE1A);
 
@@ -382,34 +382,34 @@ uint16_t touch_measure()
 ISR(TIM1_COMPA_vect)
 {
     // we now do 2-bit PWM
-    if (red_level & _BV(next_phase)) {
+    if (red_level & next_phase) {
         RED_PORT |= _BV(RED_PIN);
     } else {
         RED_PORT &= ~(_BV(RED_PIN));
     }
 
-    if (green_level & _BV(next_phase)) {
+    if (green_level & next_phase) {
         GREEN_PORT |= _BV(GREEN_PIN);
     } else {
         GREEN_PORT &= ~(_BV(GREEN_PIN));
     }
 
-    if (blue_level & _BV(next_phase)) {
+    if (blue_level & next_phase) {
         BLUE_PORT |= _BV(BLUE_PIN);
     } else {
         BLUE_PORT &= ~(_BV(BLUE_PIN));
     }
 
-    if (blue_level & _BV(next_phase)) {
+    if (blue_level & next_phase) {
         BLUE_PORT |= _BV(BLUE_PIN);
     } else {
         BLUE_PORT &= ~(_BV(BLUE_PIN));
     }
 
     // advance to next phase, reset timer
-    next_phase++;
-    if (next_phase == 2) {
-        next_phase = 0;
+    next_phase <<= 1;
+    if (next_phase == 0b100) {
+        next_phase = 1;
     }
     TCNT1 = 0;
 }
