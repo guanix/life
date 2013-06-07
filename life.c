@@ -10,11 +10,8 @@
 
 #include "life.h"
 
-uint8_t output_level;
 uint8_t next_phase;
-
 uint8_t cap_cal;
-
 uint8_t state;
 
 #define STATES 8
