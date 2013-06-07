@@ -1,14 +1,10 @@
 #ifndef _LIFE_H
 #define _LIFE_H
 
-#define RED_DDR DDRB
-#define GREEN_DDR DDRB
-#define BLUE_DDR DDRB
-#define OUTPUT_DDR DDRA
+#define RGB_DDR DDRB
+#define RGB_PORT PORTB
 
-#define RED_PORT PORTB
-#define GREEN_PORT PORTB
-#define BLUE_PORT PORTB
+#define OUTPUT_DDR DDRA
 #define OUTPUT_PORT PORTA
 
 #define RED_PIN 1
@@ -64,6 +60,8 @@ uint8_t read_neighbor();
 
 uint8_t rand_to_state(int r);
 uint8_t adc_to_state(uint16_t a);
+
+void advance_state();
 
 void update_colors();
 

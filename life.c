@@ -17,19 +17,18 @@ uint8_t cap_cal;
 
 uint8_t state;
 
-#define STATES 9
+#define STATES 8
 
 // R G B
 const uint8_t palette[STATES][3] PROGMEM = {
     {0, 0, 0},
-    {1, 0, 0},
-    {0, 0, 1},
-    {0, 1, 0},
-    {0, 1, 1},
-    {1, 0, 0},
-    {1, 0, 1},
-    {1, 1, 0},
-    {1, 1, 1}
+    {1, 0, 0}, // red
+    {1, 1, 0}, // yellow
+    {0, 1, 0}, // green
+    {0, 1, 1}, // cyan
+    {0, 0, 1}, // blue
+    {1, 0, 1}, // pink
+    {1, 1, 1} // white
 };
 
 // Mapping of state to PWM value for OCR0B
@@ -41,8 +40,7 @@ const uint8_t palette_pwm[STATES] PROGMEM = {
     126,
     154,
     182,
-    210,
-    238
+    210
 };
 
 // Mapping of 8-bit truncated ADC value to state
@@ -54,20 +52,18 @@ const uint8_t palette_adc[STATES] PROGMEM = {
     140,
     168,
     196,
-    224,
-    245
+    224
 };
 
 // Mapping of rand value (0 to 0x7fff) to state
 const int palette_rand[STATES-1] PROGMEM = {
-    3640,
-    7280,
-    10920,
-    14560,
-    18200,
-    21840,
-    25480,
-    29120
+    4100,
+    8200,
+    12300,
+    16400,
+    20500,
+    24600,
+    28700
 };
 
 uint8_t neighbors[NEIGHBORS];
@@ -96,6 +92,14 @@ uint8_t adc_to_state(uint8_t a)
     }
 
     return STATES;
+}
+
+void advance_state()
+{
+    state++;
+    if (state == STATES) {
+        state = 0;
+    }
 }
 
 uint8_t read_neighbor()
@@ -201,9 +205,7 @@ int main()
     while (1) {
         if (touch_measure() < cap_cal) {
             led_on();
-            state = rand_to_state(rand());
-//            state++;
-//            if (state == STATES) state = 0;
+            advance_state();
             update_colors();
             // wait till finger lifted
             _delay_ms(1000);
@@ -217,12 +219,12 @@ int main()
         
         if (count >= 1000/LOOP_INTERVAL) {
             count = 0;
-            led_on();
+            blink(1);
 
             // Randomly change colors instead
             if (rand() < RAND_MAX>>9) {
                 blink(4);
-                state = rand_to_state(rand());
+                advance_state();
                 update_colors();
                 continue;
             }
@@ -240,8 +242,6 @@ int main()
                 }
             }
 
-            led_off();
-
             // recalibrate touch sensor every 200 seconds
             if (count_s++ == 200) {
                 count_s = 0;
@@ -252,8 +252,7 @@ int main()
                     }
                 }
             }
-        }
-        
+        }        
 
         _delay_ms(LOOP_INTERVAL);
         count++;
