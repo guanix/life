@@ -10,9 +10,6 @@
 
 #include "life.h"
 
-uint8_t red_level;
-uint8_t green_level;
-uint8_t blue_level;
 uint8_t output_level;
 uint8_t next_phase;
 
@@ -25,14 +22,14 @@ uint8_t state;
 // R G B
 const uint8_t palette[STATES][3] PROGMEM = {
     {0, 0, 0},
-    {0, 0b01, 0b11},
-    {0b11, 0, 0},
-    {0b11, 0b01, 0},
-    {0b11, 0b11, 0},
-    {0, 0b11, 0},
-    {0, 0b11, 0b11},
-    {0, 0, 0b11},
-    {0b11, 0, 0b11}
+    {1, 0, 0},
+    {0, 0, 1},
+    {0, 1, 0},
+    {0, 1, 1},
+    {1, 0, 0},
+    {1, 0, 1},
+    {1, 1, 0},
+    {1, 1, 1}
 };
 
 // Mapping of state to PWM value for OCR0B
@@ -130,11 +127,23 @@ inline void read_neighbors()
 
 void update_colors()
 {
-    red_level = pgm_read_byte(&(palette[state][0]));
-    green_level = pgm_read_byte(&(palette[state][1]));
-    blue_level = pgm_read_byte(&(palette[state][2]));
+    if (pgm_read_byte(&(palette[state][0]))) {
+        RGB_PORT |= _BV(RED_PIN);
+    } else {
+        RGB_PORT &= ~(_BV(RED_PIN));
+    }
 
-    OCR0B = pgm_read_byte(&(palette_pwm[state]));
+    if (pgm_read_byte(&(palette[state][1]))) {
+        RGB_PORT |= _BV(GREEN_PIN);
+    } else {
+        RGB_PORT &= ~(_BV(GREEN_PIN));
+    }
+
+    if (pgm_read_byte(&(palette[state][2]))) {
+        RGB_PORT |= _BV(BLUE_PIN);
+    } else {
+        RGB_PORT &= ~(_BV(BLUE_PIN));
+    }
 }
 
 
@@ -160,9 +169,7 @@ int main()
     OUTPUT_DDR |= _BV(OUTPUT_PIN);
     // Set outputs
 
-    RED_DDR |= _BV(RED_PIN);
-    GREEN_DDR |= _BV(GREEN_PIN);
-    BLUE_DDR |= _BV(BLUE_PIN);
+    RGB_DDR |= _BV(RED_PIN) | _BV(GREEN_PIN) | _BV(BLUE_PIN);
 
     OUTPUT_DDR |= _BV(OUTPUT_PIN);
 
@@ -265,14 +272,6 @@ void led_off()
 
 void timer_init()
 {
-    // set up timer 1 for LEDs, no prescaling, 2 kHz (2-bit PWM) 
-    TCCR1B = _BV(CS10);
-    next_phase = 1;
-    OCR1A = 4000;
-    TIMSK1 = _BV(OCIE1A);
-
-    TCNT1 = 0;
-
     // set up timer 0 for analog output, /8 prescaling
     // fast PWM mode
     TCCR0A = _BV(COM0B1) | _BV(WGM01) | _BV(WGM00);
@@ -280,8 +279,6 @@ void timer_init()
     // start out at zero
     OCR0B = 0;
     TCNT0 = 0;
-
-    sei();
 }
 
 void adc_init()
@@ -360,11 +357,13 @@ uint16_t touch_measure_one()
     TOUCH_PORT |= _BV(TOUCH_PIN);
     _delay_ms(1);
     TOUCH_PORT &= ~(_BV(TOUCH_PIN));
+    _delay_us(500);
 
     // Discharge the ADC cap
     adc_channel(0b11111);
     _delay_us(500);
     adc_get();
+    _delay_us(500);
 
     // Read ADC
     adc_channel(TOUCH_ADC);
@@ -385,33 +384,4 @@ uint16_t touch_measure()
 //    sei();
 
     return retval/TOUCH_MEASURES;
-}
-
-ISR(TIM1_COMPA_vect)
-{
-    // we now do 2-bit PWM
-    if (red_level & next_phase) {
-        RED_PORT |= _BV(RED_PIN);
-    } else {
-        RED_PORT &= ~(_BV(RED_PIN));
-    }
-
-    if (green_level & next_phase) {
-        GREEN_PORT |= _BV(GREEN_PIN);
-    } else {
-        GREEN_PORT &= ~(_BV(GREEN_PIN));
-    }
-
-    if (blue_level & next_phase) {
-        BLUE_PORT |= _BV(BLUE_PIN);
-    } else {
-        BLUE_PORT &= ~(_BV(BLUE_PIN));
-    }
-
-    // advance to next phase, reset timer
-    next_phase <<= 1;
-    if (next_phase == 0b100) {
-        next_phase = 1;
-    }
-    TCNT1 = 0;
 }
