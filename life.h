@@ -36,7 +36,9 @@
 #define IN3_ADC 4
 #define IN4_ADC 5
 
-#define TEMP_ADC 8
+#define TEMP_SAMPLES 5
+
+#define TEMP_ADC 0b100010
 
 #define PWM_BITS 8
 
@@ -62,8 +64,10 @@ uint8_t rand_to_state(int r);
 uint8_t adc_to_state(uint16_t a);
 
 void advance_state();
-
 void update_colors();
+
+uint8_t temp_measure();
+uint8_t temp_getput(uint8_t val);
 
 void blink(uint8_t times);
 

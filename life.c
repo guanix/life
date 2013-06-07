@@ -65,6 +65,24 @@ const int palette_rand[STATES-1] PROGMEM = {
 
 uint8_t neighbors[NEIGHBORS];
 
+// temperature samples ring buffer
+uint8_t temp_samples[TEMP_SAMPLES];
+uint8_t temp_top = TEMP_SAMPLES - 1;
+
+// store the freshest temperature sample, return the oldest one
+uint8_t temp_getput(uint8_t val)
+{
+    uint8_t temp_bot = temp_top + 1;
+    if (temp_top == TEMP_SAMPLES) {
+        temp_bot = 0;
+    }
+
+    uint8_t retval = temp_samples[temp_bot];
+    temp_samples[temp_bot] = val;
+    temp_top = temp_bot;
+    return retval;
+}
+
 uint8_t rand_to_state(int r)
 {
     // rand_max is 15 bits, we want 8 values which is 3 bits
@@ -219,6 +237,16 @@ int main()
             count = 0;
             blink(1);
 
+            // do a temperature measurement
+            uint8_t temp = temp_measure();
+            uint8_t old_temp = temp_getput(temp);
+            if (old_temp > 0 && temp - old_temp > 3) {
+                blink(5);
+                advance_state();
+                update_colors();
+                continue;
+            }
+
             // Randomly change colors instead
             if (rand() < RAND_MAX>>9) {
                 blink(4);
@@ -287,8 +315,8 @@ void adc_init()
 
 void adc_channel(uint8_t channel)
 {
-    ADMUX &= ~(0b11111);
-    ADMUX |= 0b11111 & channel;
+    ADMUX &= ~(0b111111);
+    ADMUX |= 0b111111 & channel;
 }
 
 uint8_t adc_get()
@@ -365,6 +393,20 @@ uint16_t touch_measure_one()
     // Read ADC
     adc_channel(TOUCH_ADC);
     return adc_get();
+}
+
+uint8_t temp_measure()
+{
+    uint16_t retval = 0;
+
+    for (uint8_t i = 0; i < TOUCH_MEASURES; i++) {
+        adc_channel(TEMP_ADC);
+        retval += adc_get_raw();
+    }
+
+    retval /= TOUCH_MEASURES;
+    retval /= 4;
+    return retval;
 }
 
 uint16_t touch_measure()
