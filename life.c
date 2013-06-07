@@ -145,8 +145,9 @@ void update_colors()
     } else {
         RGB_PORT &= ~(_BV(BLUE_PIN));
     }
-}
 
+    OCR0B = pgm_read_byte(&(palette_pwm[state]));
+}
 
 void blink(uint8_t times)
 {
