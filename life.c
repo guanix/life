@@ -237,14 +237,24 @@ int main()
 
             // read the neighbors
             read_neighbors();
-            for (uint8_t i = 0; i < NEIGHBORS; i++) {
-                if (neighbors[i] != STATES &&
-                        (neighbors[i] == state + 1 ||
-                        (state == STATES && neighbors[i] == 0))) {
-                    blink(2);
-                    state = neighbors[i];
-                    update_colors();
-                    _delay_ms(2000);
+            // if 4 neighbors are the same, randomize that one
+            if (neighbors[0] == neighbors[1] && neighbors[0] == neighbors[2] &&
+                neighbors[0] == neighbors[3] && neighbors[0] > 0) {
+                blink(5);
+                state = rand_to_state(rand());
+                update_colors();
+                _delay_ms(2000);
+            } else {
+                for (uint8_t i = 0; i < NEIGHBORS; i++) {
+                    // if any neighbor is the next state, advance to that
+                    if (neighbors[i] != STATES &&
+                            (neighbors[i] == state + 1 ||
+                            (state == STATES && neighbors[i] == 0))) {
+                        blink(2);
+                        state = neighbors[i];
+                        update_colors();
+                        _delay_ms(2000);
+                    }
                 }
             }
 
