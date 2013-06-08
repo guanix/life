@@ -237,9 +237,10 @@ int main()
 
             // read the neighbors
             read_neighbors();
+
             // if 4 neighbors are the same, randomize that one
-            if (neighbors[0] == neighbors[1] && neighbors[0] == neighbors[2] &&
-                neighbors[0] == neighbors[3] && neighbors[0] > 0) {
+            if (neighbors[0] == state && neighbors[1] == state &&
+                neighbors[2] == state && neighbors[3] == state) {
                 blink(5);
                 state = rand_to_state(rand());
                 update_colors();
@@ -249,11 +250,12 @@ int main()
                     // if any neighbor is the next state, advance to that
                     if (neighbors[i] != STATES &&
                             (neighbors[i] == state + 1 ||
-                            (state == STATES && neighbors[i] == 0))) {
+                            (state == STATES - 1 && neighbors[i] == 0))) {
                         blink(2);
                         state = neighbors[i];
                         update_colors();
                         _delay_ms(2000);
+                        break;
                     }
                 }
             }
