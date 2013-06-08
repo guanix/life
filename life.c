@@ -11,7 +11,7 @@
 #include "life.h"
 
 uint8_t next_phase;
-uint8_t cap_cal;
+uint16_t cap_cal;
 uint8_t state;
 
 #define STATES 8
@@ -64,24 +64,6 @@ const int palette_rand[STATES-1] PROGMEM = {
 };
 
 uint8_t neighbors[NEIGHBORS];
-
-// temperature samples ring buffer
-uint8_t temp_samples[TEMP_SAMPLES];
-uint8_t temp_top = TEMP_SAMPLES - 1;
-
-// store the freshest temperature sample, return the oldest one
-uint8_t temp_getput(uint8_t val)
-{
-    uint8_t temp_bot = temp_top + 1;
-    if (temp_top == TEMP_SAMPLES) {
-        temp_bot = 0;
-    }
-
-    uint8_t retval = temp_samples[temp_bot];
-    temp_samples[temp_bot] = val;
-    temp_top = temp_bot;
-    return retval;
-}
 
 uint8_t rand_to_state(int r)
 {
@@ -191,7 +173,8 @@ int main()
 
     RGB_DDR |= _BV(RED_PIN) | _BV(GREEN_PIN) | _BV(BLUE_PIN);
 
-    OUTPUT_DDR |= _BV(OUTPUT_PIN);
+    // set pullups on inputs
+    IN_PORT |= _BV(IN1_ADC) | _BV(IN2_ADC) | _BV(IN3_ADC) | _BV(IN4_ADC);
 
     timer_init();
     adc_init();
@@ -215,7 +198,7 @@ int main()
     state = rand_to_state(rand());
     update_colors();
 
-    uint8_t count = 0, count_s = 0;
+    uint8_t count = 0, count_s = 50;
 
     // main event loop
     while (1) {
@@ -226,6 +209,8 @@ int main()
             // wait till finger lifted
             _delay_ms(1000);
             led_off();
+            _delay_ms(1000);
+            continue;
         }
 
         // read neighbors and advance state machine
@@ -237,14 +222,10 @@ int main()
             count = 0;
             blink(1);
 
-            // do a temperature measurement
-            uint8_t temp = temp_measure();
-            uint8_t old_temp = temp_getput(temp);
-            if (old_temp > 0 && temp - old_temp > 3) {
-                blink(5);
-                advance_state();
-                update_colors();
-                continue;
+            // recalibrate touch sensor every 200 seconds
+            if (count_s++ == 60) {
+                count_s = 0;
+                touch_calibrate();
             }
 
             // Randomly change colors instead
@@ -252,7 +233,6 @@ int main()
                 blink(4);
                 advance_state();
                 update_colors();
-                continue;
             }
 
             // read the neighbors
@@ -268,16 +248,6 @@ int main()
                 }
             }
 
-            // recalibrate touch sensor every 200 seconds
-            if (count_s++ == 200) {
-                count_s = 0;
-                if (touch_measure() >= cap_cal) {
-                    _delay_ms(50);
-                    if (touch_measure() >= cap_cal) {
-                        touch_calibrate();
-                    }
-                }
-            }
         }        
 
         _delay_ms(LOOP_INTERVAL);
@@ -382,31 +352,16 @@ uint16_t touch_measure_one()
     TOUCH_PORT |= _BV(TOUCH_PIN);
     _delay_ms(1);
     TOUCH_PORT &= ~(_BV(TOUCH_PIN));
-    _delay_us(500);
+    _delay_ms(1);
 
     // Discharge the ADC cap
     adc_channel(0b11111);
-    _delay_us(500);
-    adc_get();
-    _delay_us(500);
+    adc_get_raw();
+    _delay_ms(1);
 
     // Read ADC
     adc_channel(TOUCH_ADC);
-    return adc_get();
-}
-
-uint8_t temp_measure()
-{
-    uint16_t retval = 0;
-
-    for (uint8_t i = 0; i < TOUCH_MEASURES; i++) {
-        adc_channel(TEMP_ADC);
-        retval += adc_get_raw();
-    }
-
-    retval /= TOUCH_MEASURES;
-    retval /= 4;
-    return retval;
+    return adc_get_raw();
 }
 
 uint16_t touch_measure()

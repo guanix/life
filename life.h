@@ -21,8 +21,8 @@
 #define TOUCH_ADC 0
 
 #define TOUCH_CALS 16
-#define TOUCH_THRESHOLD 50
-#define TOUCH_CAL_INTERVAL 50
+#define TOUCH_THRESHOLD 100
+#define TOUCH_CAL_INTERVAL 100
 #define TOUCH_MEASURES 8
 
 #define NEIGHBOR_READINGS 256
@@ -31,6 +31,7 @@
 
 #define NC_ADC 6
 
+#define IN_PORT PORTA
 #define IN1_ADC 2
 #define IN2_ADC 3
 #define IN3_ADC 4
@@ -65,9 +66,6 @@ uint8_t adc_to_state(uint16_t a);
 
 void advance_state();
 void update_colors();
-
-uint8_t temp_measure();
-uint8_t temp_getput(uint8_t val);
 
 void blink(uint8_t times);
 
