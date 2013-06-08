@@ -14,53 +14,41 @@ uint8_t next_phase;
 uint16_t cap_cal;
 uint8_t state;
 
-#define STATES 8
+#define STATES 5
 
 // R G B
 const uint8_t palette[STATES][3] PROGMEM = {
     {0, 0, 0},
     {1, 0, 0}, // red
-    {1, 1, 0}, // yellow
     {0, 1, 0}, // green
-    {0, 1, 1}, // cyan
     {0, 0, 1}, // blue
-    {1, 0, 1}, // pink
     {1, 1, 1} // white
 };
 
 // Mapping of state to PWM value for OCR0B
 const uint8_t palette_pwm[STATES] PROGMEM = {
     0,
-    42,
-    70,
-    98,
-    126,
-    154,
-    182,
-    210
+    63,
+    104,
+    146,
+    187
 };
 
 // Mapping of 8-bit truncated ADC value to state
 const uint8_t palette_adc[STATES] PROGMEM = {
-    28,
-    56,
-    84,
-    112,
-    140,
-    168,
-    196,
-    224
+    42,
+    83,
+    125,
+    166,
+    208
 };
 
 // Mapping of rand value (0 to 0x7fff) to state
 const int palette_rand[STATES-1] PROGMEM = {
-    4100,
-    8200,
-    12300,
-    16400,
-    20500,
-    24600,
-    28700
+    6553,
+    13107,
+    19660,
+    26214
 };
 
 uint8_t neighbors[NEIGHBORS];
@@ -165,7 +153,7 @@ int main()
     LED_DDR |= _BV(LED_PIN);
     led_off();
 
-    // Wakeup inducation
+    // Wakeup indication
     blink(2);
 
     OUTPUT_DDR |= _BV(OUTPUT_PIN);
@@ -186,7 +174,7 @@ int main()
     // cycle through the colors
     for (state = 0; state < STATES; state++) {
         update_colors();
-        _delay_ms(500);
+        _delay_ms(400);
     }
 
     // sleep for a random amount of time up to 1 second
@@ -222,20 +210,20 @@ int main()
             count = 0;
             blink(1);
 
-            // recalibrate touch sensor every 200 seconds
+            // Recalibrate touch sensor every 60 seconds
             if (count_s++ == 60) {
                 count_s = 0;
                 touch_calibrate();
             }
 
-            // Randomly change colors instead
+            // Randomly advance state
             if (rand() < RAND_MAX>>9) {
                 blink(4);
                 advance_state();
                 update_colors();
             }
 
-            // read the neighbors
+            // Read the neighbors
             read_neighbors();
 
             // if 4 neighbors are the same, randomize that one
@@ -259,7 +247,6 @@ int main()
                     }
                 }
             }
-
         }        
 
         _delay_ms(LOOP_INTERVAL);
